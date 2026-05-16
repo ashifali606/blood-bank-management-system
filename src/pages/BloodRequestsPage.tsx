@@ -112,6 +112,11 @@ export default function BloodRequestsPage() {
   useEffect(() => { fetchRequests(); }, []);
 
   async function fetchRequests() {
+    if (!supabase) {
+      setRequests([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const { data } = await supabase
@@ -131,6 +136,10 @@ export default function BloodRequestsPage() {
     e.preventDefault();
     if (!user) {
       addToast('Please login to submit a blood request', 'error');
+      return;
+    }
+    if (!supabase) {
+      addToast('Database is not configured. Please set up Supabase environment variables.', 'error');
       return;
     }
     setSubmitting(true);

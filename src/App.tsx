@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import HomePage from './pages/HomePage';
@@ -14,28 +15,30 @@ import ContactPage from './pages/ContactPage';
 
 function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <ToastProvider>
-          <Routes>
-            <Route element={<Layout />}>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/find-blood" element={<FindBloodPage />} />
-              <Route path="/become-donor" element={<DonorRegistrationPage />} />
-              <Route path="/blood-requests" element={<BloodRequestsPage />} />
-              <Route path="/contact" element={<ContactPage />} />
-              <Route path="/dashboard" element={
-                <ProtectedRoute adminOnly>
-                  <DashboardPage />
-                </ProtectedRoute>
-              } />
-            </Route>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignupPage />} />
-          </Routes>
-        </ToastProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <ToastProvider>
+            <Routes>
+              <Route element={<Layout />}>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/find-blood" element={<FindBloodPage />} />
+                <Route path="/become-donor" element={<DonorRegistrationPage />} />
+                <Route path="/blood-requests" element={<BloodRequestsPage />} />
+                <Route path="/contact" element={<ContactPage />} />
+                <Route path="/dashboard" element={
+                  <ProtectedRoute adminOnly>
+                    <DashboardPage />
+                  </ProtectedRoute>
+                } />
+              </Route>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupPage />} />
+            </Routes>
+          </ToastProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

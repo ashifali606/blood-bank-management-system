@@ -92,6 +92,12 @@ export default function FindBloodPage() {
 
   async function handleSearch(e?: React.FormEvent) {
     if (e) e.preventDefault();
+    if (!supabase) {
+      setDonors([]);
+      setLoading(false);
+      setSearcheded(true);
+      return;
+    }
     setLoading(true);
     setSearcheded(true);
     try {

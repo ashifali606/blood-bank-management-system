@@ -79,6 +79,12 @@ export default function DashboardPage() {
   useEffect(() => { fetchData(); }, []);
 
   async function fetchData() {
+    if (!supabase) {
+      setDonors([]);
+      setRequests([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const [donorsRes, requestsRes] = await Promise.all([
@@ -95,6 +101,7 @@ export default function DashboardPage() {
   }
 
   async function toggleAvailability(donor: Donor) {
+    if (!supabase) return;
     setActionLoading(donor.id);
     try {
       const { error } = await supabase.from('donors').update({ availability_status: !donor.availability_status }).eq('id', donor.id);
@@ -109,6 +116,7 @@ export default function DashboardPage() {
   }
 
   async function deleteDonor(id: string) {
+    if (!supabase) return;
     if (!confirm('Are you sure you want to remove this donor?')) return;
     setActionLoading(id);
     try {
@@ -124,6 +132,7 @@ export default function DashboardPage() {
   }
 
   async function updateRequestStatus(id: string, status: string) {
+    if (!supabase) return;
     setActionLoading(id);
     try {
       const { error } = await supabase.from('blood_requests').update({ status }).eq('id', id);
@@ -138,6 +147,7 @@ export default function DashboardPage() {
   }
 
   async function deleteRequest(id: string) {
+    if (!supabase) return;
     if (!confirm('Delete this blood request?')) return;
     setActionLoading(id);
     try {

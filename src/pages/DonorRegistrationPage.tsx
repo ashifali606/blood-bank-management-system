@@ -31,6 +31,10 @@ export default function DonorRegistrationPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!supabase) {
+      addToast('Database is not configured. Please set up Supabase environment variables.', 'error');
+      return;
+    }
     setLoading(true);
     try {
       const { error } = await supabase.from('donors').insert({
