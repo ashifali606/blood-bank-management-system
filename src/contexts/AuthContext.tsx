@@ -1,16 +1,18 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import type { User, Session } from '@supabase/supabase-js';
 
-interface Profile {
+export type UserRole = 'donor' | 'seeker';
+
+export interface Profile {
   id: string;
-  full_name: string;
+  name: string;
+  email: string;
   phone: string;
-  blood_group: string;
-  location: string;
-  age: number | null;
-  role: 'donor' | 'admin';
+  role: UserRole;
+  created_at: string;
+  updated_at: string;
 }
 
 interface AuthContextType {
@@ -18,8 +20,9 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
-  signUp: (email: string, password: string, metadata: Record<string, string>) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
+  isConfigured: boolean;
+  signUp: (email: string, password: string, metadata: { name: string; phone?: string; role?: UserRole }) => Promise<{ error: Error | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -31,79 +34,143 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchProfile = useCallback(async (userId: string) => {
+    if (!supabase) return null;
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      console.error('Error fetching profile:', err);
+      return null;
+    }
+  }, []);
+
   useEffect(() => {
     if (!supabase || !isSupabaseConfigured()) {
       setLoading(false);
       return;
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase!.auth.getSession();
+        if (error) throw error;
+
+        if (mounted) {
+          setSession(session);
+          setUser(session?.user ?? null);
+
+          if (session?.user) {
+            const profileData = await fetchProfile(session.user.id);
+            if (mounted) setProfile(profileData);
+          }
+        }
+      } catch (err) {
+        console.error('Auth initialization error:', err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    initializeAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (!mounted) return;
+
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user) {
+          const profileData = await fetchProfile(session.user.id);
+          if (mounted) setProfile(profileData);
+        } else {
+          setProfile(null);
+        }
+
         setLoading(false);
       }
-    }).catch(() => {
-      setLoading(false);
-    });
+    );
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
-        setProfile(null);
-        setLoading(false);
-      }
-    });
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [fetchProfile]);
 
-    return () => subscription.unsubscribe();
-  }, []);
+  const signUp = async (
+    email: string,
+    password: string,
+    metadata: { name: string; phone?: string; role?: UserRole }
+  ) => {
+    if (!supabase) {
+      return { error: new Error('Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.') };
+    }
 
-  async function fetchProfile(userId: string) {
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: metadata.name,
+            phone: metadata.phone || '',
+            role: metadata.role || 'donor',
+          },
+        },
+      });
+
+      return { error: error || null };
+    } catch (err) {
+      return { error: err as Error };
+    }
+  };
+
+  const signIn = async (email: string, password: string) => {
+    if (!supabase) {
+      return { error: new Error('Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.') };
+    }
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      return { error: error || null };
+    } catch (err) {
+      return { error: err as Error };
+    }
+  };
+
+  const signOut = async () => {
     if (!supabase) return;
     try {
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
-      setProfile(data);
-    } catch {
-      // Profile fetch failed, continue without profile
-    } finally {
-      setLoading(false);
+      await supabase.auth.signOut();
+      setProfile(null);
+      setUser(null);
+      setSession(null);
+    } catch (err) {
+      console.error('Sign out error:', err);
     }
-  }
-
-  async function signUp(email: string, password: string, metadata: Record<string, string>) {
-    if (!supabase) throw new Error('Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.');
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: metadata },
-    });
-    if (error) throw error;
-  }
-
-  async function signIn(email: string, password: string) {
-    if (!supabase) throw new Error('Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.');
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-  }
-
-  async function signOut() {
-    if (!supabase) return;
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-    setProfile(null);
-  }
+  };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        profile,
+        loading,
+        isConfigured: isSupabaseConfigured(),
+        signUp,
+        signIn,
+        signOut,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -111,6 +178,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
   return context;
 }

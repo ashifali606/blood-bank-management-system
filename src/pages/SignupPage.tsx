@@ -1,16 +1,20 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth, type UserRole } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { BLOOD_GROUPS } from '../components/BloodGroupBadge';
-import { Droplets, Mail, Lock, User, Phone, MapPin, Loader2, ArrowRight } from 'lucide-react';
+import { Droplets, Mail, Lock, User, Phone, Loader2, ArrowRight } from 'lucide-react';
 
 export default function SignupPage() {
   const [form, setForm] = useState({
-    fullName: '', email: '', password: '', bloodGroup: '', phone: '', location: '', age: '',
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    phone: '',
+    role: 'donor' as UserRole,
   });
   const [loading, setLoading] = useState(false);
-  const { signUp } = useAuth();
+  const { signUp, isConfigured } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
 
@@ -20,25 +24,37 @@ export default function SignupPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (!isConfigured) {
+      addToast('Supabase is not configured. Please set up environment variables.', 'error');
+      return;
+    }
+
     if (form.password.length < 6) {
       addToast('Password must be at least 6 characters', 'error');
       return;
     }
+
+    if (form.password !== form.confirmPassword) {
+      addToast('Passwords do not match', 'error');
+      return;
+    }
+
     setLoading(true);
-    try {
-      await signUp(form.email, form.password, {
-        full_name: form.fullName,
-        blood_group: form.bloodGroup,
-        phone: form.phone,
-        location: form.location,
-        age: form.age,
-      });
-      addToast('Account created! Please check your email to confirm.', 'success');
+
+    const { error } = await signUp(form.email, form.password, {
+      name: form.name,
+      phone: form.phone,
+      role: form.role,
+    });
+
+    setLoading(false);
+
+    if (error) {
+      addToast(error.message || 'Signup failed', 'error');
+    } else {
+      addToast('Account created successfully! Please check your email to confirm your account.', 'success');
       navigate('/login');
-    } catch (err: any) {
-      addToast(err.message || 'Signup failed', 'error');
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -61,12 +77,25 @@ export default function SignupPage() {
           <h2 className="text-xl font-bold text-white text-center mb-2">Create Account</h2>
           <p className="text-slate-400 text-sm text-center mb-6">Join the life-saving community</p>
 
+          {!isConfigured && (
+            <div className="mb-6 bg-amber-500/10 text-amber-400 text-sm px-4 py-3 rounded-xl border border-amber-500/20">
+              Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1">Full Name</label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input type="text" value={form.fullName} onChange={e => update('fullName', e.target.value)} required className={inputClass} placeholder="Your full name" />
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={e => update('name', e.target.value)}
+                  required
+                  className={inputClass}
+                  placeholder="Your full name"
+                />
               </div>
             </div>
 
@@ -74,29 +103,44 @@ export default function SignupPage() {
               <label className="block text-sm font-medium text-slate-300 mb-1">Email</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input type="email" value={form.email} onChange={e => update('email', e.target.value)} required className={inputClass} placeholder="you@example.com" />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input type="password" value={form.password} onChange={e => update('password', e.target.value)} required minLength={6} className={inputClass} placeholder="Min 6 characters" />
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={e => update('email', e.target.value)}
+                  required
+                  className={inputClass}
+                  placeholder="you@example.com"
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Blood Group</label>
-                <select value={form.bloodGroup} onChange={e => update('bloodGroup', e.target.value)} required className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all appearance-none hover:border-slate-600">
-                  <option value="">Select</option>
-                  {BLOOD_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                  <input
+                    type="password"
+                    value={form.password}
+                    onChange={e => update('password', e.target.value)}
+                    required
+                    minLength={6}
+                    className={inputClass}
+                    placeholder="Min 6 chars"
+                  />
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Age</label>
-                <input type="number" value={form.age} onChange={e => update('age', e.target.value)} required min={18} max={65} className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all hover:border-slate-600" placeholder="18-65" />
+                <label className="block text-sm font-medium text-slate-300 mb-1">Confirm Password</label>
+                <input
+                  type="password"
+                  value={form.confirmPassword}
+                  onChange={e => update('confirmPassword', e.target.value)}
+                  required
+                  minLength={6}
+                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all hover:border-slate-600"
+                  placeholder="Confirm"
+                />
               </div>
             </div>
 
@@ -104,26 +148,48 @@ export default function SignupPage() {
               <label className="block text-sm font-medium text-slate-300 mb-1">Phone Number</label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input type="tel" value={form.phone} onChange={e => update('phone', e.target.value)} required className={inputClass} placeholder="+91 9876543210" />
+                <input
+                  type="tel"
+                  value={form.phone}
+                  onChange={e => update('phone', e.target.value)}
+                  className={inputClass}
+                  placeholder="+91 9876543210"
+                />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Location</label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input type="text" value={form.location} onChange={e => update('location', e.target.value)} required className={inputClass} placeholder="City, State" />
-              </div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">I want to</label>
+              <select
+                value={form.role}
+                onChange={e => update('role', e.target.value as UserRole)}
+                className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all appearance-none hover:border-slate-600"
+              >
+                <option value="donor">Register as a Donor</option>
+                <option value="seeker">Request Blood</option>
+              </select>
             </div>
 
-            <button type="submit" disabled={loading} className="btn-premium w-full py-3 bg-gradient-to-r from-red-600 to-red-500 disabled:opacity-50 text-white font-semibold rounded-xl shadow-lg shadow-red-600/25 flex items-center justify-center gap-2 mt-2">
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Create Account <ArrowRight className="w-4 h-4" /></>}
+            <button
+              type="submit"
+              disabled={loading || !isConfigured}
+              className="btn-premium w-full py-3 bg-gradient-to-r from-red-600 to-red-500 disabled:opacity-50 text-white font-semibold rounded-xl shadow-lg shadow-red-600/25 flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  Create Account <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </form>
 
           <p className="text-slate-400 text-sm text-center mt-6">
             Already have an account?{' '}
-            <Link to="/login" className="text-red-400 hover:text-red-300 font-medium transition-colors">Sign In</Link>
+            <Link to="/login" className="text-red-400 hover:text-red-300 font-medium transition-colors">
+              Sign In
+            </Link>
           </p>
         </div>
       </div>

@@ -2,27 +2,33 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { Droplets, Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
+import { Droplets, Mail, Lock, Loader2, ArrowRight, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, isConfigured } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (!isConfigured) {
+      addToast('Supabase is not configured. Please set up environment variables.', 'error');
+      return;
+    }
+
     setLoading(true);
-    try {
-      await signIn(email, password);
+    const { error } = await signIn(email, password);
+    setLoading(false);
+
+    if (error) {
+      addToast(error.message || 'Login failed', 'error');
+    } else {
       addToast('Logged in successfully!', 'success');
       navigate('/');
-    } catch (err: any) {
-      addToast(err.message || 'Login failed', 'error');
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -42,6 +48,16 @@ export default function LoginPage() {
 
           <h2 className="text-xl font-bold text-white text-center mb-2">Welcome Back</h2>
           <p className="text-slate-400 text-sm text-center mb-8">Sign in to your account</p>
+
+          {!isConfigured && (
+            <div className="mb-6 bg-amber-500/10 text-amber-400 text-sm px-4 py-3 rounded-xl border border-amber-500/20 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium">Configuration Required</p>
+                <p className="text-xs text-amber-400/80 mt-1">Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment.</p>
+              </div>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
@@ -68,6 +84,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
+                  minLength={6}
                   className="w-full bg-slate-800/80 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all hover:border-slate-600"
                   placeholder="Enter your password"
                 />
@@ -76,10 +93,16 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !isConfigured}
               className="btn-premium w-full py-3 bg-gradient-to-r from-red-600 to-red-500 disabled:opacity-50 text-white font-semibold rounded-xl shadow-lg shadow-red-600/25 flex items-center justify-center gap-2"
             >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Sign In <ArrowRight className="w-4 h-4" /></>}
+              {loading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  Sign In <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </form>
 

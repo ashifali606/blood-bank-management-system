@@ -58,14 +58,17 @@ export default function Navbar() {
                 )}
               </Link>
             ))}
-            {user && profile?.role === 'admin' && (
-              <Link to="/dashboard" className={`${linkClass('/dashboard')} px-3 py-2 rounded-lg text-sm hover:bg-white/5 transition-all`}>
+            {user && (
+              <Link
+                to="/dashboard"
+                className={`${linkClass('/dashboard')} px-3 py-2 rounded-lg text-sm hover:bg-white/5 transition-all`}
+              >
                 Dashboard
               </Link>
             )}
             {user ? (
               <div className="flex items-center gap-3 ml-3 pl-3 border-l border-slate-700">
-                <span className="text-sm text-slate-400">{profile?.full_name || user.email}</span>
+                <span className="text-sm text-slate-400">{profile?.name || user.email}</span>
                 <button
                   onClick={signOut}
                   className="btn-premium px-4 py-1.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all"
@@ -107,7 +110,7 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
-            {user && profile?.role === 'admin' && (
+            {user && (
               <Link
                 to="/dashboard"
                 onClick={() => setOpen(false)}
@@ -123,7 +126,7 @@ export default function Navbar() {
                 onClick={() => { signOut(); setOpen(false); }}
                 className="w-full text-left py-2.5 px-3 rounded-xl text-red-400 hover:bg-red-500/10 transition-all"
               >
-                Logout ({profile?.full_name || user.email})
+                Logout ({profile?.name || user.email})
               </button>
             ) : (
               <Link

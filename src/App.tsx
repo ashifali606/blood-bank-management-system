@@ -26,11 +26,14 @@ function App() {
                 <Route path="/become-donor" element={<DonorRegistrationPage />} />
                 <Route path="/blood-requests" element={<BloodRequestsPage />} />
                 <Route path="/contact" element={<ContactPage />} />
-                <Route path="/dashboard" element={
-                  <ProtectedRoute adminOnly>
-                    <DashboardPage />
-                  </ProtectedRoute>
-                } />
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <DashboardPage />
+                    </ProtectedRoute>
+                  }
+                />
               </Route>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
