@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, type UserRole } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { Droplets, Mail, Lock, User, Phone, Loader2, ArrowRight } from 'lucide-react';
+import { Droplets, Mail, Lock, User, Phone, Loader2, ArrowRight, AlertCircle } from 'lucide-react';
 
 export default function SignupPage() {
   const [form, setForm] = useState({
@@ -14,6 +14,7 @@ export default function SignupPage() {
     role: 'donor' as UserRole,
   });
   const [loading, setLoading] = useState(false);
+  const [accountExists, setAccountExists] = useState(false);
   const { signUp, isConfigured } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
@@ -42,13 +43,19 @@ export default function SignupPage() {
 
     setLoading(true);
 
-    const { error } = await signUp(form.email, form.password, {
+    const { error, userExists } = await signUp(form.email, form.password, {
       name: form.name,
       phone: form.phone,
       role: form.role,
     });
 
     setLoading(false);
+
+    if (userExists) {
+      setAccountExists(true);
+      addToast('An account with this email already exists.', 'error');
+      return;
+    }
 
     if (error) {
       addToast(error.message || 'Signup failed', 'error');
@@ -74,123 +81,164 @@ export default function SignupPage() {
             <span className="text-2xl font-bold text-white">Blood<span className="text-red-500">Link</span></span>
           </div>
 
-          <h2 className="text-xl font-bold text-white text-center mb-2">Create Account</h2>
-          <p className="text-slate-400 text-sm text-center mb-6">Join the life-saving community</p>
-
-          {!isConfigured && (
-            <div className="mb-6 bg-amber-500/10 text-amber-400 text-sm px-4 py-3 rounded-xl border border-amber-500/20">
-              Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Full Name</label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={e => update('name', e.target.value)}
-                  required
-                  className={inputClass}
-                  placeholder="Your full name"
-                />
+          {accountExists ? (
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto">
+                <AlertCircle className="w-8 h-8 text-amber-500" />
+              </div>
+              <h2 className="text-xl font-bold text-white">Account Already Exists</h2>
+              <p className="text-slate-400 text-sm">
+                An account with <span className="text-white font-medium">{form.email}</span> already exists.
+              </p>
+              <div className="space-y-3">
+                <Link
+                  to="/login"
+                  className="btn-premium w-full py-3 bg-gradient-to-r from-red-600 to-red-500 text-white font-semibold rounded-xl shadow-lg shadow-red-600/25 block text-center"
+                >
+                  Go to Login
+                </Link>
+                <Link
+                  to="/forgot-password"
+                  className="block text-center text-red-400 hover:text-red-300 text-sm font-medium transition-colors"
+                >
+                  Forgot your password?
+                </Link>
+                <button
+                  onClick={() => {
+                    setAccountExists(false);
+                    setForm(prev => ({ ...prev, email: '' }));
+                  }}
+                  className="text-slate-400 hover:text-white text-sm transition-colors"
+                >
+                  Use a different email
+                </button>
               </div>
             </div>
+          ) : (
+            <>
+              <h2 className="text-xl font-bold text-white text-center mb-2">Create Account</h2>
+              <p className="text-slate-400 text-sm text-center mb-6">Join the life-saving community</p>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Email</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={e => update('email', e.target.value)}
-                  required
-                  className={inputClass}
-                  placeholder="you@example.com"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                  <input
-                    type="password"
-                    value={form.password}
-                    onChange={e => update('password', e.target.value)}
-                    required
-                    minLength={6}
-                    className={inputClass}
-                    placeholder="Min 6 chars"
-                  />
+              {!isConfigured && (
+                <div className="mb-6 bg-amber-500/10 text-amber-400 text-sm px-4 py-3 rounded-xl border border-amber-500/20 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium">Configuration Required</p>
+                    <p className="text-xs text-amber-400/80 mt-1">Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment.</p>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Confirm Password</label>
-                <input
-                  type="password"
-                  value={form.confirmPassword}
-                  onChange={e => update('confirmPassword', e.target.value)}
-                  required
-                  minLength={6}
-                  className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all hover:border-slate-600"
-                  placeholder="Confirm"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Phone Number</label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
-                <input
-                  type="tel"
-                  value={form.phone}
-                  onChange={e => update('phone', e.target.value)}
-                  className={inputClass}
-                  placeholder="+91 9876543210"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">I want to</label>
-              <select
-                value={form.role}
-                onChange={e => update('role', e.target.value as UserRole)}
-                className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all appearance-none hover:border-slate-600"
-              >
-                <option value="donor">Register as a Donor</option>
-                <option value="seeker">Request Blood</option>
-              </select>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading || !isConfigured}
-              className="btn-premium w-full py-3 bg-gradient-to-r from-red-600 to-red-500 disabled:opacity-50 text-white font-semibold rounded-xl shadow-lg shadow-red-600/25 flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  Create Account <ArrowRight className="w-4 h-4" />
-                </>
               )}
-            </button>
-          </form>
 
-          <p className="text-slate-400 text-sm text-center mt-6">
-            Already have an account?{' '}
-            <Link to="/login" className="text-red-400 hover:text-red-300 font-medium transition-colors">
-              Sign In
-            </Link>
-          </p>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Full Name</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                    <input
+                      type="text"
+                      value={form.name}
+                      onChange={e => update('name', e.target.value)}
+                      required
+                      className={inputClass}
+                      placeholder="Your full name"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Email</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                    <input
+                      type="email"
+                      value={form.email}
+                      onChange={e => update('email', e.target.value)}
+                      required
+                      className={inputClass}
+                      placeholder="you@example.com"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-1">Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                      <input
+                        type="password"
+                        value={form.password}
+                        onChange={e => update('password', e.target.value)}
+                        required
+                        minLength={6}
+                        className={inputClass}
+                        placeholder="Min 6 chars"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-1">Confirm Password</label>
+                    <input
+                      type="password"
+                      value={form.confirmPassword}
+                      onChange={e => update('confirmPassword', e.target.value)}
+                      required
+                      minLength={6}
+                      className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all hover:border-slate-600"
+                      placeholder="Confirm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Phone Number</label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                    <input
+                      type="tel"
+                      value={form.phone}
+                      onChange={e => update('phone', e.target.value)}
+                      className={inputClass}
+                      placeholder="+91 9876543210"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">I want to</label>
+                  <select
+                    value={form.role}
+                    onChange={e => update('role', e.target.value as UserRole)}
+                    className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500 transition-all appearance-none hover:border-slate-600"
+                  >
+                    <option value="donor">Register as a Donor</option>
+                    <option value="seeker">Request Blood</option>
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading || !isConfigured}
+                  className="btn-premium w-full py-3 bg-gradient-to-r from-red-600 to-red-500 disabled:opacity-50 text-white font-semibold rounded-xl shadow-lg shadow-red-600/25 flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <>
+                      Create Account <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <p className="text-slate-400 text-sm text-center mt-6">
+                Already have an account?{' '}
+                <Link to="/login" className="text-red-400 hover:text-red-300 font-medium transition-colors">
+                  Sign In
+                </Link>
+              </p>
+            </>
+          )}
         </div>
       </div>
     </div>

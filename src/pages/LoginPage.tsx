@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { Droplets, Mail, Lock, Loader2, ArrowRight, AlertCircle } from 'lucide-react';
@@ -11,6 +11,9 @@ export default function LoginPage() {
   const { signIn, isConfigured } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -25,10 +28,16 @@ export default function LoginPage() {
     setLoading(false);
 
     if (error) {
-      addToast(error.message || 'Login failed', 'error');
+      if (error.message.includes('Invalid login credentials')) {
+        addToast('Invalid email or password. Please try again or reset your password.', 'error');
+      } else if (error.message.includes('Email not confirmed')) {
+        addToast('Please check your email and confirm your account before logging in.', 'error');
+      } else {
+        addToast(error.message || 'Login failed', 'error');
+      }
     } else {
       addToast('Logged in successfully!', 'success');
-      navigate('/');
+      navigate(from, { replace: true });
     }
   }
 
@@ -89,6 +98,19 @@ export default function LoginPage() {
                   placeholder="Enter your password"
                 />
               </div>
+            </div>
+
+            <div className="flex items-center justify-between text-sm">
+              <label className="flex items-center gap-2 text-slate-400">
+                <input type="checkbox" className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-red-500 focus:ring-red-500/50" />
+                Remember me
+              </label>
+              <Link
+                to="/forgot-password"
+                className="text-red-400 hover:text-red-300 transition-colors"
+              >
+                Forgot password?
+              </Link>
             </div>
 
             <button

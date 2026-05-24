@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import type { User, Session } from '@supabase/supabase-js';
+import type { User, Session, AuthError } from '@supabase/supabase-js';
 
 export type UserRole = 'donor' | 'seeker';
 
@@ -21,9 +21,11 @@ interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   isConfigured: boolean;
-  signUp: (email: string, password: string, metadata: { name: string; phone?: string; role?: UserRole }) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, metadata: { name: string; phone?: string; role?: UserRole }) => Promise<{ error: Error | null; userExists?: boolean }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<{ error: Error | null }>;
+  updatePassword: (password: string) => Promise<{ error: Error | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -127,7 +129,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       });
 
-      return { error: error || null };
+      if (error) {
+        if (error.message.includes('already registered') || error.message.includes('already been registered')) {
+          return { error: null, userExists: true };
+        }
+        return { error };
+      }
+
+      return { error: null, userExists: false };
     } catch (err) {
       return { error: err as Error };
     }
@@ -158,6 +167,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const resetPassword = async (email: string) => {
+    if (!supabase) {
+      return { error: new Error('Supabase is not configured.') };
+    }
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      return { error: error || null };
+    } catch (err) {
+      return { error: err as Error };
+    }
+  };
+
+  const updatePassword = async (password: string) => {
+    if (!supabase) {
+      return { error: new Error('Supabase is not configured.') };
+    }
+
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      return { error: error || null };
+    } catch (err) {
+      return { error: err as Error };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -169,6 +206,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUp,
         signIn,
         signOut,
+        resetPassword,
+        updatePassword,
       }}
     >
       {children}
@@ -182,4 +221,8 @@ export function useAuth() {
     throw new Error('useAuth must be used within AuthProvider');
   }
   return context;
+}
+
+export function isAuthError(error: unknown): error is AuthError {
+  return error !== null && typeof error === 'object' && 'message' in error;
 }
