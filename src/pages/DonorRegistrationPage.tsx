@@ -119,13 +119,21 @@ export default function DonorRegistrationPage() {
         error = result.error;
       }
 
-      if (error) throw error;
+      if (error) {
+        console.error('Donor upsert error:', error.message);
+        throw new Error(error.message || 'Operation failed');
+      }
 
       setSuccess(true);
       addToast(existingDonor ? 'Donor profile updated successfully!' : 'Donor registered successfully!', 'success');
       setExistingDonor(true);
-    } catch (err: any) {
-      addToast(err.message || 'Registration failed', 'error');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Registration failed';
+      if (msg.includes('Could not find the table')) {
+        addToast('Database table not found. Please contact support.', 'error');
+      } else {
+        addToast(msg, 'error');
+      }
     } finally {
       setLoading(false);
     }

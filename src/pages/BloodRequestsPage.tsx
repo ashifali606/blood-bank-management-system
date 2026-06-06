@@ -164,7 +164,7 @@ export default function BloodRequestsPage() {
     setSubmitting(true);
 
     try {
-      const { error } = await supabase.from('blood_requests').insert({
+      const insertData: Record<string, unknown> = {
         patient_name: form.patientName,
         blood_group: form.bloodGroup,
         hospital_name: form.hospitalName,
@@ -172,11 +172,19 @@ export default function BloodRequestsPage() {
         phone: form.phone,
         units_needed: parseInt(form.unitsNeeded),
         emergency_level: form.emergencyLevel,
-        message: form.message,
         created_by: user.id,
-      });
+      };
 
-      if (error) throw error;
+      if (form.message.trim()) {
+        insertData.message = form.message.trim();
+      }
+
+      const { error } = await supabase.from('blood_requests').insert(insertData);
+
+      if (error) {
+        console.error('Blood request insert error:', error.message);
+        throw new Error(error.message || 'Failed to submit request');
+      }
 
       addToast('Blood request submitted successfully!', 'success');
       setForm({
@@ -191,8 +199,13 @@ export default function BloodRequestsPage() {
       });
       setShowForm(false);
       fetchRequests();
-    } catch (err: any) {
-      addToast(err.message || 'Failed to submit request', 'error');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to submit request';
+      if (msg.includes('Could not find the table')) {
+        addToast('Database table not found. Please contact support.', 'error');
+      } else {
+        addToast(msg, 'error');
+      }
     } finally {
       setSubmitting(false);
     }

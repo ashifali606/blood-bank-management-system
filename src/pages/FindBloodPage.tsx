@@ -129,7 +129,10 @@ export default function FindBloodPage() {
       }
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error('Donor search error:', error.message);
+        throw new Error(error.message);
+      }
       setDonors(data || []);
     } catch (err) {
       console.error('Search error:', err);

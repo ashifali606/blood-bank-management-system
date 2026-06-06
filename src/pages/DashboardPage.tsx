@@ -102,8 +102,14 @@ export default function DashboardPage() {
         supabase.from('blood_requests').select('*').order('created_at', { ascending: false }),
       ]);
 
-      if (donorsRes.error) throw donorsRes.error;
-      if (requestsRes.error) throw requestsRes.error;
+      if (donorsRes.error) {
+        console.error('Donors fetch error:', donorsRes.error.message);
+        throw new Error(donorsRes.error.message);
+      }
+      if (requestsRes.error) {
+        console.error('Requests fetch error:', requestsRes.error.message);
+        throw new Error(requestsRes.error.message);
+      }
 
       setDonors(donorsRes.data || []);
       setRequests(requestsRes.data || []);
