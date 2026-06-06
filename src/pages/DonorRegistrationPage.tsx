@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -148,12 +149,12 @@ export default function DonorRegistrationPage() {
             >
               {existingDonor ? 'Edit Profile' : 'Register Another'}
             </button>
-            <a
-              href="/find-blood"
+            <Link
+              to="/find-blood"
               className="btn-premium px-6 py-2.5 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-xl shadow-lg shadow-red-600/20 flex items-center gap-2"
             >
               Find Blood <ArrowRight className="w-4 h-4" />
-            </a>
+            </Link>
           </div>
         </div>
       </div>
@@ -204,12 +205,12 @@ export default function DonorRegistrationPage() {
           <Section>
             <div className="text-center bg-slate-900/50 border border-slate-800 rounded-2xl p-8">
               <p className="text-slate-400 mb-4">Please log in to register as a donor.</p>
-              <a
-                href="/login"
+              <Link
+                to="/login"
                 className="btn-premium inline-flex px-6 py-2.5 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-xl shadow-lg shadow-red-600/20"
               >
                 Sign In
-              </a>
+              </Link>
             </div>
           </Section>
         )}

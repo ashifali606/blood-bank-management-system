@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -238,12 +239,12 @@ export default function BloodRequestsPage() {
           <Section>
             <div className="text-center bg-slate-900/50 border border-slate-800 rounded-2xl p-8 mb-8">
               <p className="text-slate-400 mb-4">Please log in to submit a blood request.</p>
-              <a
-                href="/login"
+              <Link
+                to="/login"
                 className="btn-premium inline-flex px-6 py-2.5 bg-gradient-to-r from-red-600 to-red-500 text-white rounded-xl shadow-lg shadow-red-600/20"
               >
                 Sign In to Submit Request
-              </a>
+              </Link>
             </div>
           </Section>
         )}
