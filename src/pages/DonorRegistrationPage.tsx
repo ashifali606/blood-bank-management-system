@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { safeQuery } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { BLOOD_GROUPS } from '../components/BloodGroupBadge';
@@ -43,16 +43,14 @@ export default function DonorRegistrationPage() {
 
   useEffect(() => {
     async function checkExistingDonor() {
-      if (!supabase || !user) {
+      if (!user) {
         setChecking(false);
         return;
       }
       try {
-        const { data } = await supabase
-          .from('donors')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
+        const { data } = await safeQuery<{ full_name: string; age: number; blood_group: string; phone: string; city: string; state: string; availability: boolean } | null>(
+          async (client) => client.from('donors').select('*').eq('user_id', user!.id).maybeSingle()
+        );
         if (data) {
           setExistingDonor(true);
           setForm({
@@ -81,11 +79,6 @@ export default function DonorRegistrationPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!supabase) {
-      addToast('Database is not configured. Please set up Supabase environment variables.', 'error');
-      return;
-    }
-
     if (!user) {
       addToast('Please log in to register as a donor.', 'error');
       return;
@@ -107,33 +100,25 @@ export default function DonorRegistrationPage() {
 
       let error;
       if (existingDonor) {
-        const result = await supabase
-          .from('donors')
-          .update(donorData)
-          .eq('user_id', user.id);
+        const result = await safeQuery(async (client) =>
+          client.from('donors').update(donorData).eq('user_id', user!.id)
+        );
         error = result.error;
       } else {
-        const result = await supabase
-          .from('donors')
-          .insert(donorData);
+        const result = await safeQuery(async (client) =>
+          client.from('donors').insert(donorData)
+        );
         error = result.error;
       }
 
-      if (error) {
-        console.error('Donor upsert error:', error.message);
-        throw new Error(error.message || 'Operation failed');
-      }
+      if (error) throw error;
 
       setSuccess(true);
       addToast(existingDonor ? 'Donor profile updated successfully!' : 'Donor registered successfully!', 'success');
       setExistingDonor(true);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Registration failed';
-      if (msg.includes('Could not find the table')) {
-        addToast('Database table not found. Please contact support.', 'error');
-      } else {
-        addToast(msg, 'error');
-      }
+      addToast(msg, 'error');
     } finally {
       setLoading(false);
     }

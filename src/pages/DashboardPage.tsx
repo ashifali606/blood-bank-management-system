@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { safeQuery } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { BloodGroupBadge } from '../components/BloodGroupBadge';
@@ -88,28 +88,15 @@ export default function DashboardPage() {
   }, [loading]);
 
   async function fetchData() {
-    if (!supabase) {
-      setDonors([]);
-      setRequests([]);
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
     try {
       const [donorsRes, requestsRes] = await Promise.all([
-        supabase.from('donors').select('*').order('created_at', { ascending: false }),
-        supabase.from('blood_requests').select('*').order('created_at', { ascending: false }),
+        safeQuery<Donor[]>(async (client) => client.from('donors').select('*').order('created_at', { ascending: false })),
+        safeQuery<BloodRequest[]>(async (client) => client.from('blood_requests').select('*').order('created_at', { ascending: false })),
       ]);
 
-      if (donorsRes.error) {
-        console.error('Donors fetch error:', donorsRes.error.message);
-        throw new Error(donorsRes.error.message);
-      }
-      if (requestsRes.error) {
-        console.error('Requests fetch error:', requestsRes.error.message);
-        throw new Error(requestsRes.error.message);
-      }
+      if (donorsRes.error) throw donorsRes.error;
+      if (requestsRes.error) throw requestsRes.error;
 
       setDonors(donorsRes.data || []);
       setRequests(requestsRes.data || []);

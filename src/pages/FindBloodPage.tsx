@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { safeQuery } from '../lib/supabase';
 import { BLOOD_GROUPS, BloodGroupBadge } from '../components/BloodGroupBadge';
 import { SkeletonCard } from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
@@ -104,38 +104,30 @@ export default function FindBloodPage() {
   async function handleSearch(e?: React.FormEvent) {
     if (e) e.preventDefault();
 
-    if (!supabase) {
-      setDonors([]);
-      setLoading(false);
-      setSearched(true);
-      return;
-    }
-
     setLoading(true);
     setSearched(true);
 
     try {
-      let query = supabase
-        .from('donors')
-        .select('*')
-        .eq('availability', true)
+      const { data, error } = await safeQuery<Donor[]>(async (client) => {
+        let query = client
+          .from('donors')
+          .select('*')
+          .eq('availability', true)
           .order('created_at', { ascending: false });
 
-      if (bloodGroup) {
-        query = query.eq('blood_group', bloodGroup);
-      }
-      if (city) {
-        query = query.ilike('city', `%${city}%`);
-      }
+        if (bloodGroup) {
+          query = query.eq('blood_group', bloodGroup);
+        }
+        if (city) {
+          query = query.ilike('city', `%${city}%`);
+        }
 
-      const { data, error } = await query;
-      if (error) {
-        console.error('Donor search error:', error.message);
-        throw new Error(error.message);
-      }
+        return await query;
+      });
+
+      if (error) throw error;
       setDonors(data || []);
-    } catch (err) {
-      console.error('Search error:', err);
+    } catch {
       setDonors([]);
     } finally {
       setLoading(false);

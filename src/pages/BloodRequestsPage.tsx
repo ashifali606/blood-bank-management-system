@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { safeQuery } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { BLOOD_GROUPS, BloodGroupBadge } from '../components/BloodGroupBadge';
@@ -120,24 +120,14 @@ export default function BloodRequestsPage() {
   }, []);
 
   async function fetchRequests() {
-    if (!supabase) {
-      setRequests([]);
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('blood_requests')
-        .select('*')
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
-
+      const { data, error } = await safeQuery<BloodRequest[]>(async (client) =>
+        client.from('blood_requests').select('*').eq('status', 'active').order('created_at', { ascending: false })
+      );
       if (error) throw error;
       setRequests(data || []);
-    } catch (err) {
-      console.error('Fetch error:', err);
+    } catch {
       setRequests([]);
     } finally {
       setLoading(false);
@@ -153,11 +143,6 @@ export default function BloodRequestsPage() {
 
     if (!user) {
       addToast('Please login to submit a blood request', 'error');
-      return;
-    }
-
-    if (!supabase) {
-      addToast('Database is not configured', 'error');
       return;
     }
 
@@ -179,12 +164,11 @@ export default function BloodRequestsPage() {
         insertData.message = form.message.trim();
       }
 
-      const { error } = await supabase.from('blood_requests').insert(insertData);
+      const { error } = await safeQuery(async (client) =>
+        client.from('blood_requests').insert(insertData)
+      );
 
-      if (error) {
-        console.error('Blood request insert error:', error.message);
-        throw new Error(error.message || 'Failed to submit request');
-      }
+      if (error) throw error;
 
       addToast('Blood request submitted successfully!', 'success');
       setForm({
@@ -201,11 +185,7 @@ export default function BloodRequestsPage() {
       fetchRequests();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to submit request';
-      if (msg.includes('Could not find the table')) {
-        addToast('Database table not found. Please contact support.', 'error');
-      } else {
-        addToast(msg, 'error');
-      }
+      addToast(msg, 'error');
     } finally {
       setSubmitting(false);
     }
